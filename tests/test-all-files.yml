@@ -1,0 +1,32 @@
+name: Test ESLint all files
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install ESLint in fixture app
+        run: |
+          node --version
+          npm --version
+          cd "$GITHUB_WORKSPACE/tests/fixtures/eslint-app"
+          npm install --no-audit --no-fund --loglevel=error
+          ./node_modules/.bin/eslint --version
+
+      - name: Run ESLint on all files (skip_annotations=true)
+        id: eslint-action
+        uses: .
+        with:
+          token: ${{ github.token }}
+          all_files: 'true'
+          skip_annotations: 'true'
+          path: 'tests/fixtures/eslint-app'
+          extra_args: 'src/'
+          fail_on_error: 'false'
+
+      - name: Assert action completed successfully
+        run: |
+          echo "ESLint action completed without fatal error"
+          echo "PASS"

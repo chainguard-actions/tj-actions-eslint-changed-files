@@ -1,0 +1,34 @@
+name: Test ESLint no changed files
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Install ESLint in fixture app
+        run: |
+          node --version
+          npm --version
+          cd "$GITHUB_WORKSPACE/tests/fixtures/eslint-app"
+          npm install --no-audit --no-fund --loglevel=error
+          ./node_modules/.bin/eslint --version
+
+      - name: Run ESLint with no changed files (all_files=false)
+        id: eslint-action
+        uses: .
+        with:
+          token: ${{ github.token }}
+          all_files: 'false'
+          skip_annotations: 'true'
+          path: 'tests/fixtures/eslint-app'
+          fail_on_error: 'false'
+          skip_initial_fetch: 'true'
+
+      - name: Assert action completed successfully with no files to lint
+        run: |
+          echo "ESLint action completed without error when no files changed"
+          echo "PASS"

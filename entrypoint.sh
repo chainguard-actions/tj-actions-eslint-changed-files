@@ -26,13 +26,14 @@ if [[ "$INPUT_SKIP_ANNOTATIONS" != "true" ]]; then
   export REVIEWDOG_GITHUB_API_TOKEN=$INPUT_TOKEN
 fi
 
-# Build CONFIG_ARG as an array to avoid unquoted expansion
+# Build CONFIG_ARG as an array so that the value is never re-interpreted by the shell.
 CONFIG_ARG=()
 if [[ -n "$INPUT_CONFIG_PATH" ]]; then
   CONFIG_ARG=("--config=${INPUT_CONFIG_PATH}")
 fi
 
-# Split EXTRA_ARGS into an array to avoid unquoted expansion
+# Split EXTRA_ARGS on whitespace into an array so that each flag/value is a
+# separate argument and shell metacharacters in the input cannot be injected.
 EXTRA_ARGS=()
 if [[ -n "$INPUT_EXTRA_ARGS" ]]; then
   read -ra EXTRA_ARGS <<< "$INPUT_EXTRA_ARGS"
@@ -63,7 +64,8 @@ if [[ "$INPUT_ALL_FILES" == "true" ]]; then
     exit 1;
   fi
 else
-  # Split INPUT_CHANGED_FILES into an array to avoid unquoted expansion
+  # Split INPUT_CHANGED_FILES on whitespace into an array so that each filename
+  # is a separate argument and shell metacharacters cannot be injected.
   CHANGED_FILES=()
   if [[ -n "$INPUT_CHANGED_FILES" ]]; then
     read -ra CHANGED_FILES <<< "$INPUT_CHANGED_FILES"

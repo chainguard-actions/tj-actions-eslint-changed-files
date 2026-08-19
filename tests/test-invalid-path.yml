@@ -1,0 +1,38 @@
+name: Test ESLint invalid path error handling
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Verify invalid path does not exist
+        run: |
+          if [ -d "$GITHUB_WORKSPACE/nonexistent-directory-that-does-not-exist" ]; then
+            echo "FAIL: directory unexpectedly exists"
+            exit 1
+          fi
+          echo "Confirmed: invalid path does not exist"
+
+      - name: Run ESLint with invalid path (should fail)
+        id: eslint-action
+        uses: .
+        with:
+          token: ${{ github.token }}
+          all_files: 'true'
+          skip_annotations: 'true'
+          path: 'nonexistent-directory-that-does-not-exist'
+          fail_on_error: 'false'
+        continue-on-error: true
+
+      - name: Assert action failed due to invalid path
+        env:
+          OUTCOME: ${{ steps.eslint-action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "FAIL: expected action to fail with invalid path, but got outcome: $OUTCOME"
+            exit 1
+          fi
+          echo "PASS: action correctly failed with invalid path"
