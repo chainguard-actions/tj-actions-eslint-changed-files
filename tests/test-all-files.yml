@@ -1,0 +1,42 @@
+name: Test ESLint all files mode
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install ESLint in fixture directory
+        run: |
+          cd "$GITHUB_WORKSPACE/tests/fixtures/eslint-app"
+          npm install 2>&1 | tail -10
+          echo "ESLint version:"
+          ./node_modules/.bin/eslint --version
+
+      - name: Run ESLint action on all files (all_files=true, skip_annotations=true)
+        id: action
+        uses: .
+        continue-on-error: true
+        with:
+          token: ${{ github.token }}
+          all_files: 'true'
+          skip_annotations: 'true'
+          path: tests/fixtures/eslint-app
+          extra_args: 'src/'
+
+      - name: Assert action succeeded
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: ESLint ran successfully on all files"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "FAIL: action failed unexpectedly"
+            exit 1
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
