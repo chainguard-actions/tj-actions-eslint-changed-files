@@ -10,98 +10,36 @@
 
 **Harden Agent Version:** `2`
 
-Action **tj-actions--eslint-changed-files/v25.3.1** was hardened automatically. 3 finding(s) were identified and resolved across 2 iteration(s).
+Action **tj-actions--eslint-changed-files/v25.3.1** was hardened automatically. 2 finding(s) were identified and resolved across 1 iteration(s).
 
 ## Findings Fixed
 
 ### unpinned-uses (severity: high)
 
-Multiple uses: references are pinned to mutable tags or branch names instead of immutable 40-character commit SHAs, making the action vulnerable to supply-chain attacks.
-
-action.yml: uses: reviewdog/action-setup@v1
-
-.github/workflows/codacy-analysis.yml: codacy/codacy-analysis-cli-action@v4.4.5, github/codeql-action/upload-sarif@v3
-
-.github/workflows/codeql.yml: github/codeql-action/init@v3, github/codeql-action/autobuild@v3, github/codeql-action/analyze@v3
-
-.github/workflows/rebase.yml: cirrus-actions/rebase@1.8
-
-.github/workflows/sync-release-version.yml: tj-actions/release-tagger@v4, tj-actions/sync-release-version@v13, tj-actions/git-cliff@v1, peter-evans/create-pull-request@v7
-
-.github/workflows/test.yml: reviewdog/action-shellcheck@v1.30, actions/setup-node@v4 (x2), tj-actions/verify-changed-files@v20, ad-m/github-push-action@master
-
-.github/workflows/update-readme.yml: tj-actions/auto-doc@v3, tj-actions/remark@v3, tj-actions/verify-changed-files@v20, peter-evans/create-pull-request@v7
+The composite action uses `reviewdog/action-setup@v1`, which is pinned to a mutable tag (`v1`) rather than an immutable 40-character commit SHA. This means the referenced action can be silently changed by the upstream repository, enabling a supply-chain attack. It should be pinned to a full SHA, e.g. `reviewdog/action-setup@<40-char-sha> # v1`.
 
 Locations:
 
-- `action.yml:63`
-- `.github/workflows/codacy-analysis.yml:35`
-- `.github/workflows/codacy-analysis.yml:55`
-- `.github/workflows/codeql.yml:40`
-- `.github/workflows/codeql.yml:55`
-- `.github/workflows/codeql.yml:65`
-- `.github/workflows/rebase.yml:15`
-- `.github/workflows/sync-release-version.yml:14`
-- `.github/workflows/sync-release-version.yml:16`
-- `.github/workflows/sync-release-version.yml:21`
-- `.github/workflows/sync-release-version.yml:23`
-- `.github/workflows/test.yml:17`
-- `.github/workflows/test.yml:27`
-- `.github/workflows/test.yml:70`
-- `.github/workflows/test.yml:88`
-- `.github/workflows/test.yml:110`
-- `.github/workflows/update-readme.yml:11`
-- `.github/workflows/update-readme.yml:16`
-- `.github/workflows/update-readme.yml:19`
-- `.github/workflows/update-readme.yml:33`
-
-### missing-permissions (severity: medium)
-
-Three workflow files have no top-level permissions: key and no job-level permissions: keys on any of their jobs. Without explicit permissions, the GITHUB_TOKEN is granted its default (potentially broad) permissions, violating least-privilege: test.yml, rebase.yml, update-readme.yml.
-
-Locations:
-
-- `.github/workflows/test.yml:1`
-- `.github/workflows/rebase.yml:1`
-- `.github/workflows/update-readme.yml:1`
+- `action.yml:74`
 
 ### script-injection (severity: high)
 
-Sub-rule (a) violation: A ${{ }} expression is interpolated directly inside a run: shell command string. In the 'Commit outstanding changes' step, the value of steps.verify-changed-files.outputs.changed_files (a steps.*.outputs.* context, which is workflow-controllable) is passed directly to git add without quoting or sanitization: `git add ${{ steps.verify-changed-files.outputs.changed_files }}`. An attacker who can influence the changed file list (e.g. via a crafted filename) could inject arbitrary shell commands into the runner.
+Rule (b) violation: In entrypoint.sh, the variables `${CONFIG_ARG}`, `${EXTRA_ARGS}`, and `${INPUT_CHANGED_FILES}` are expanded **unquoted** in `npx eslint` invocations. These variables are derived from workflow-controllable inputs (`inputs.config_path`, `inputs.extra_args`, and `steps.changed-files.outputs.all_changed_files` respectively), set via the `env:` block in action.yml. Unquoted expansion allows the shell to parse metacharacters (`;`, `|`, `&`, `$(...)`, etc.) from the values, enabling command injection. All four `npx eslint` call sites are affected (lines 35, 38, 57, 60). Each variable should be double-quoted: `"${CONFIG_ARG}"`, `"${EXTRA_ARGS}"`, `"${INPUT_CHANGED_FILES}"`.
 
 Locations:
 
-- `.github/workflows/test.yml:83`
+- `entrypoint.sh:35`
+- `entrypoint.sh:38`
+- `entrypoint.sh:57`
+- `entrypoint.sh:60`
 
 ## Iteration Notes
 
 ### Iteration 1
 
-**Fixes applied:** unpinned-uses, missing-permissions, script-injection
+**Fixes applied:** unpinned-uses, script-injection
 
 **Notes:**
 
-Fixed all three findings:
-
-1. unpinned-uses: Pinned all mutable tag/branch references to full 40-character commit SHAs across action.yml, codacy-analysis.yml, codeql.yml, rebase.yml, sync-release-version.yml, test.yml, and update-readme.yml. All original tags preserved as inline comments.
-
-2. missing-permissions: Added top-level permissions blocks to test.yml (contents: write, pull-requests: read), rebase.yml (contents: write, pull-requests: read), and update-readme.yml (contents: write, pull-requests: write).
-
-3. script-injection: In test.yml 'Commit outstanding changes' step, moved `${{ steps.verify-changed-files.outputs.changed_files }}` out of the run: shell string into an env: block as CHANGED_FILES, then referenced it as "$CHANGED_FILES" in the shell script to prevent shell command injection.
-
-### Iteration 2
-
-**Fixes applied:** script-injection
-
-**Notes:**
-
-Fixed all four script injection vulnerabilities in entrypoint.sh by converting CONFIG_ARG, EXTRA_ARGS, and INPUT_CHANGED_FILES from unquoted string variables to bash arrays:
-
-1. CONFIG_ARG: Now a bash array (CONFIG_ARG=()), populated with ("--config=${INPUT_CONFIG_PATH}") when set. Expanded as "${CONFIG_ARG[@]}".
-
-2. EXTRA_ARGS: Now a bash array (EXTRA_ARGS=()), populated via `read -ra EXTRA_ARGS <<< "$INPUT_EXTRA_ARGS"` which splits on whitespace only, not on shell metacharacters. Expanded as "${EXTRA_ARGS[@]}".
-
-3. INPUT_CHANGED_FILES: Now split into a CHANGED_FILES bash array via `read -ra CHANGED_FILES <<< "$INPUT_CHANGED_FILES"`. The emptiness check was updated to use array length `${#CHANGED_FILES[@]} -gt 0`. Expanded as "${CHANGED_FILES[@]}".
-
-All four npx eslint invocations now use safe array expansions, preventing shell metacharacters in attacker-controlled inputs from being interpreted as shell commands. The SC2086 shellcheck disable comments were removed as they are no longer needed.
+1. Pinned reviewdog/action-setup@v1 to full SHA d8a7baabd7f3e8544ee4dbde3ee41d0011c3a93f in action.yml. 2. Fixed script injection in entrypoint.sh: CONFIG_ARG now uses ${CONFIG_ARG:+"$CONFIG_ARG"} for safe optional single-value expansion; INPUT_EXTRA_ARGS and INPUT_CHANGED_FILES are each tokenized into bash arrays via xargs (quote-aware splitting) and expanded as "${array[@]}" at all four npx eslint call sites.
 

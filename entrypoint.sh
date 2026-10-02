@@ -26,26 +26,26 @@ if [[ "$INPUT_SKIP_ANNOTATIONS" != "true" ]]; then
   export REVIEWDOG_GITHUB_API_TOKEN=$INPUT_TOKEN
 fi
 
-# Build CONFIG_ARG as an array so that the value is never re-interpreted by the shell.
-CONFIG_ARG=()
+CONFIG_ARG=""
+
 if [[ -n "$INPUT_CONFIG_PATH" ]]; then
-  CONFIG_ARG=("--config=${INPUT_CONFIG_PATH}")
+  CONFIG_ARG="--config=${INPUT_CONFIG_PATH}"
 fi
 
-# Split EXTRA_ARGS on whitespace into an array so that each flag/value is a
-# separate argument and shell metacharacters in the input cannot be injected.
-EXTRA_ARGS=()
+# Tokenize EXTRA_ARGS (a whitespace-separated list of flags) into an array
+extra_args=()
 if [[ -n "$INPUT_EXTRA_ARGS" ]]; then
-  read -ra EXTRA_ARGS <<< "$INPUT_EXTRA_ARGS"
+  while IFS= read -r -d '' t; do extra_args+=("$t"); done \
+    < <(printf '%s' "$INPUT_EXTRA_ARGS" | xargs printf '%s\0')
 fi
 
 if [[ "$INPUT_ALL_FILES" == "true" ]]; then
   echo "Running ESLint on all files..."
   if [[ "$INPUT_SKIP_ANNOTATIONS" == "true" ]]; then
     echo "Skipping annotations..."
-    npx eslint "${CONFIG_ARG[@]}" "${EXTRA_ARGS[@]}" && exit_status=$? || exit_status=$?
+    npx eslint ${CONFIG_ARG:+"$CONFIG_ARG"} "${extra_args[@]}" && exit_status=$? || exit_status=$?
   else
-    npx eslint "${CONFIG_ARG[@]}" "${EXTRA_ARGS[@]}" -f="${ESLINT_FORMATTER}" . > "$RD_JSON_FILE" && exit_status=$? || exit_status=$?
+    npx eslint ${CONFIG_ARG:+"$CONFIG_ARG"} "${extra_args[@]}" -f="${ESLINT_FORMATTER}" . > "$RD_JSON_FILE" && exit_status=$? || exit_status=$?
   fi
   
   if [[ "$INPUT_SKIP_ANNOTATIONS" != "true" ]]; then
@@ -64,20 +64,17 @@ if [[ "$INPUT_ALL_FILES" == "true" ]]; then
     exit 1;
   fi
 else
-  # Split INPUT_CHANGED_FILES on whitespace into an array so that each filename
-  # is a separate argument and shell metacharacters cannot be injected.
-  CHANGED_FILES=()
-  if [[ -n "$INPUT_CHANGED_FILES" ]]; then
-    read -ra CHANGED_FILES <<< "$INPUT_CHANGED_FILES"
-  fi
-
-  if [[ ${#CHANGED_FILES[@]} -gt 0 ]]; then
+  if [[ -n "${INPUT_CHANGED_FILES}" ]]; then
       echo "Running ESLint on changed files..."
+      # Tokenize INPUT_CHANGED_FILES (space-separated list of paths) into an array
+      changed_files=()
+      while IFS= read -r -d '' t; do changed_files+=("$t"); done \
+        < <(printf '%s' "$INPUT_CHANGED_FILES" | xargs printf '%s\0')
       if [[ "$INPUT_SKIP_ANNOTATIONS" == "true" ]]; then
         echo "Skipping annotations..."
-        npx eslint "${CONFIG_ARG[@]}" "${EXTRA_ARGS[@]}" "${CHANGED_FILES[@]}" && exit_status=$? || exit_status=$?
+        npx eslint ${CONFIG_ARG:+"$CONFIG_ARG"} "${extra_args[@]}" "${changed_files[@]}" && exit_status=$? || exit_status=$?
       else
-        npx eslint "${CONFIG_ARG[@]}" "${EXTRA_ARGS[@]}" -f="${ESLINT_FORMATTER}" "${CHANGED_FILES[@]}" > "$RD_JSON_FILE" && exit_status=$? || exit_status=$?
+        npx eslint ${CONFIG_ARG:+"$CONFIG_ARG"} "${extra_args[@]}" -f="${ESLINT_FORMATTER}" "${changed_files[@]}" > "$RD_JSON_FILE" && exit_status=$? || exit_status=$?
       fi
       
       if [[ "$INPUT_SKIP_ANNOTATIONS" != "true" ]]; then
