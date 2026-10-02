@@ -97,13 +97,13 @@ runs:
         curl "${args[@]}" \
           -d "{\"repository\":\"${GITHUB_REPOSITORY}\",\"action\":\"${GITHUB_ACTION_REPOSITORY}\"}" \
           "https://actions.enforce.dev/actions/v1/record" >/dev/null 2>&1 || true
-    - uses: reviewdog/action-setup@e04ffabe3898a0af8d0fb1af00c188831c4b5893 # v1.3.2
+    - uses: chainguard-actions/reviewdog-action-setup@ac5ef34619ac70023428edc68deeeef9b4d8bc22 # v1.3.2
       if: inputs.skip_annotations == 'false'
       with:
         reviewdog_version: v0.20.0
     - name: Get changed files
       id: changed-files
-      uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c # v46.0.5
+      uses: chainguard-actions/tj-actions-changed-files@e1e5897569595d691bbaa257eee797ea395d3e74 # v46.0.5
       if: inputs.all_files == 'false'
       with:
         path: ${{ inputs.path }}
