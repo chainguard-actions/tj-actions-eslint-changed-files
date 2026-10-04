@@ -103,7 +103,7 @@ runs:
         reviewdog_version: v0.20.0
     - name: Get changed files
       id: changed-files
-      uses: tj-actions/changed-files@2f7c5bfce28377bc069a65ba478de0a74aa0ca32 # v46
+      uses: chainguard-actions/tj-actions-changed-files@1837c66b9523e4d28e73bccaf5a2b6d2505e47a9 # v46
       if: inputs.all_files == 'false'
       with:
         path: ${{ inputs.path }}
