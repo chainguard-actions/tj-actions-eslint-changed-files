@@ -3,7 +3,7 @@ description: Run ESLint on all changed files
 author: jackton1
 inputs:
   token:
-    description: "[GITHUB TOKEN](https://docs.github.com/en/free-pro-team@latest/actions/reference/authentication-in-a-workflow#using-the-github_token-in-a-workflow) or a repo scoped [Personal Access Token](https://docs.github.com/en/free-pro-team@latest/github/authenticating-to-github/creating-a-personal-access-token)"
+    description: "[GITHUB TOKEN](https://docs.github.com/en/free-pro-team@latest/actions/reference/authentication-in-a-workflow#using-the-github_token-in-a-workflow) or a repo scoped [Personal Access Token](https://docs.github.com/en/free-pro-team@latest/github/authenticating-to-github/creating-a-personal-access-token)"
     required: true
     default: ${{ github.token }}
   all_files:
@@ -77,6 +77,7 @@ inputs:
       to silence ignore files warning [ignore file](https://eslint.org/docs/latest/use/configure/ignore-deprecated#using-an-alternate-file)
     required: false
     default: ''
+
 runs:
   using: 'composite'
   steps:
@@ -117,7 +118,7 @@ runs:
     - name: Run eslint on changed files
       run: |
         # Run eslint on changed files
-        bash $GITHUB_ACTION_PATH/entrypoint.sh
+        bash "$GITHUB_ACTION_PATH/entrypoint.sh"
       id: eslint-changed-files
       shell: bash
       env:
@@ -140,6 +141,7 @@ runs:
         INPUT_FAIL_ON_ERROR: ${{ inputs.fail_on_error }}
         INPUT_REPORTER: ${{ inputs.reporter }}
         INPUT_SKIP_ANNOTATIONS: ${{ inputs.token && inputs.skip_annotations || 'true' }}
+
 branding:
   icon: check-square
   color: white

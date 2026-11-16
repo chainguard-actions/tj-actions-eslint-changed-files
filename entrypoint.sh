@@ -33,21 +33,19 @@ if [[ -n "$INPUT_CONFIG_PATH" ]]; then
   CONFIG_ARG="--config=${INPUT_CONFIG_PATH}"
 fi
 
-# Tokenize EXTRA_ARGS (an args-style list) into an array using xargs for
-# quote-aware splitting, preventing shell metacharacter injection.
-extra_args_array=()
-if [ -n "$EXTRA_ARGS" ]; then
-  while IFS= read -r -d '' t; do extra_args_array+=("$t"); done \
-    < <(printf '%s' "$EXTRA_ARGS" | xargs printf '%s\0')
-fi
+# EXTRA_ARGS is a whitespace-separated argument list. Upstream expanded it
+# unquoted; assign it unquoted to an array so it splits (and globs) exactly as
+# upstream did, without evaluating any shell syntax in the value.
+# shellcheck disable=SC2206
+extra_args_array=($EXTRA_ARGS)
 
 if [[ "$INPUT_ALL_FILES" == "true" ]]; then
   echo "Running ESLint on all files..."
   if [[ "$INPUT_SKIP_ANNOTATIONS" == "true" ]]; then
     echo "Skipping annotations..."
-    npx eslint ${CONFIG_ARG:+"$CONFIG_ARG"} "${extra_args_array[@]}" && exit_status=$? || exit_status=$?
+    npx eslint ${CONFIG_ARG:+"$CONFIG_ARG"} ${extra_args_array[@]+"${extra_args_array[@]}"} && exit_status=$? || exit_status=$?
   else
-    npx eslint ${CONFIG_ARG:+"$CONFIG_ARG"} "${extra_args_array[@]}" -f="${ESLINT_FORMATTER}" . > "$RD_JSON_FILE" && exit_status=$? || exit_status=$?
+    npx eslint ${CONFIG_ARG:+"$CONFIG_ARG"} ${extra_args_array[@]+"${extra_args_array[@]}"} -f="${ESLINT_FORMATTER}" . > "$RD_JSON_FILE" && exit_status=$? || exit_status=$?
   fi
   
   if [[ "$INPUT_SKIP_ANNOTATIONS" != "true" ]]; then
@@ -69,19 +67,15 @@ else
   if [[ -n "${INPUT_CHANGED_FILES[*]}" ]]; then
       echo "Running ESLint on changed files..."
 
-      # Tokenize INPUT_CHANGED_FILES (a space-separated list of file paths) into
-      # an array using xargs for quote-aware splitting.
-      changed_files_array=()
-      if [ -n "$INPUT_CHANGED_FILES" ]; then
-        while IFS= read -r -d '' t; do changed_files_array+=("$t"); done \
-          < <(printf '%s' "$INPUT_CHANGED_FILES" | xargs printf '%s\0')
-      fi
+      # Space-separated file list; split exactly as upstream's unquoted expansion.
+      # shellcheck disable=SC2206
+      changed_files_array=($INPUT_CHANGED_FILES)
 
       if [[ "$INPUT_SKIP_ANNOTATIONS" == "true" ]]; then
         echo "Skipping annotations..."
-        npx eslint ${CONFIG_ARG:+"$CONFIG_ARG"} "${extra_args_array[@]}" "${changed_files_array[@]}" && exit_status=$? || exit_status=$?
+        npx eslint ${CONFIG_ARG:+"$CONFIG_ARG"} ${extra_args_array[@]+"${extra_args_array[@]}"} ${changed_files_array[@]+"${changed_files_array[@]}"} && exit_status=$? || exit_status=$?
       else
-        npx eslint ${CONFIG_ARG:+"$CONFIG_ARG"} "${extra_args_array[@]}" -f="${ESLINT_FORMATTER}" "${changed_files_array[@]}" > "$RD_JSON_FILE" && exit_status=$? || exit_status=$?
+        npx eslint ${CONFIG_ARG:+"$CONFIG_ARG"} ${extra_args_array[@]+"${extra_args_array[@]}"} -f="${ESLINT_FORMATTER}" ${changed_files_array[@]+"${changed_files_array[@]}"} > "$RD_JSON_FILE" && exit_status=$? || exit_status=$?
       fi
       
       if [[ "$INPUT_SKIP_ANNOTATIONS" != "true" ]]; then
